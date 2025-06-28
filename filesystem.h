@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define BTREE_ORDER 3 // Grau mínimo (pode ser ajustado)
+#define MIN_DEGREE 2 // Grau mínimo (pode ser ajustado)
 
 typedef enum { FILE_TYPE, DIRECTORY_TYPE } NodeType;
 
@@ -28,8 +28,8 @@ typedef struct TreeNode {
 
 typedef struct BTreeNode {
     int num_keys;
-    TreeNode* keys[2 * BTREE_ORDER - 1];
-    struct BTreeNode* children[2 * BTREE_ORDER];
+    TreeNode* keys[2 * MIN_DEGREE - 1];
+    struct BTreeNode* children[2 * MIN_DEGREE];
     int leaf;
 } BTreeNode;
 
