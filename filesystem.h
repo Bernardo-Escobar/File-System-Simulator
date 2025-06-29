@@ -6,7 +6,14 @@
 #include <string.h>
 
 #define MIN_DEGREE 2 // Grau mínimo (pode ser ajustado)
+// ordem = quantidade máxima de ponteiros/filhos por nó
+// ordem - 1 = quantidade de chaves
+// ordem/2 = quantidade mínima de filhos
+// grau mínimo = mínimo de chaves
+// grau máximo = máximo de chaves (gera split)
+// ex.: min_degree = 2 --> max_degree = 3
 
+//Enum para distinguir entre arquivos e diretórios
 typedef enum { FILE_TYPE, DIRECTORY_TYPE } NodeType;
 
 typedef struct File {
@@ -17,6 +24,7 @@ typedef struct File {
 
 struct Directory;
 
+// Nó da árvore que pode ser um arquivo ou diretório
 typedef struct TreeNode {
     char* name;
     NodeType type;
@@ -26,6 +34,7 @@ typedef struct TreeNode {
     } data;
 } TreeNode;
 
+// Nó da árvore B
 typedef struct BTreeNode {
     int num_keys;
     TreeNode* keys[2 * MIN_DEGREE - 1];
@@ -33,6 +42,7 @@ typedef struct BTreeNode {
     int leaf;
 } BTreeNode;
 
+// Árvore B
 typedef struct BTree {
     BTreeNode* root;
 } BTree;

@@ -60,9 +60,6 @@ TreeNode* btree_search(BTree* tree, const char* name) {
 
 /*---------------------------------------- INSERT ----------------------------------------*/
 
-// void btree_insert(BTree* tree, TreeNode* node) {
-//     printf("Inserindo: %s (simulado)\n", node->name);
-// }
 
 void btree_split_child(BTreeNode* parent, int i, BTreeNode* full_child) {
     int t = MIN_DEGREE;
@@ -104,7 +101,7 @@ void btree_insert_nonfull(BTreeNode* r, TreeNode* node) {
 
     if (r->leaf) {
         // Move as chaves para abrir espaço
-        while (i >= 0 && strcmp(node->name, r->keys[i]->name) < 0) {
+        while (i >= 0 && strcmp(node->name, r->keys[i]->name) < 0) { //dif
             r->keys[i + 1] = r->keys[i];
             i--;
         }
@@ -113,7 +110,7 @@ void btree_insert_nonfull(BTreeNode* r, TreeNode* node) {
         r->num_keys++;
     } else {
         // Encontra o filho que deve receber a nova chave
-        while (i >= 0 && strcmp(node->name, r->keys[i]->name) < 0) {
+        while (i >= 0 && strcmp(node->name, r->keys[i]->name) < 0) { //dif
             i--;
         }
         i++;
@@ -121,7 +118,7 @@ void btree_insert_nonfull(BTreeNode* r, TreeNode* node) {
         // Se o filho está cheio, divida
         if (r->children[i]->num_keys == 2 * MIN_DEGREE - 1) {
             btree_split_child(r, i, r->children[i]);
-            if (strcmp(node->name, r->keys[i]->name) > 0) {
+            if (strcmp(node->name, r->keys[i]->name) > 0) { //dif
                 i++;
             }
         }
@@ -130,8 +127,8 @@ void btree_insert_nonfull(BTreeNode* r, TreeNode* node) {
 }
 
 void btree_insert(BTree* tree, TreeNode* node) {
+    // Cria raiz se não existe
     if (tree->root == NULL) {
-        // Cria raiz
         tree->root = malloc(sizeof(BTreeNode));
         tree->root->leaf = 1;
         tree->root->num_keys = 1;
@@ -143,10 +140,11 @@ void btree_insert(BTree* tree, TreeNode* node) {
 
     if (r->num_keys == 2 * MIN_DEGREE - 1) {
         // Raiz cheia, precisa dividir
+        // Cria novo nó
         BTreeNode* s = malloc(sizeof(BTreeNode));
-        tree->root = s;
+        tree->root = s; // raiz = s
         s->leaf = 0;
-        s->num_keys = 0;
+        s->num_keys = 0; //dif
         s->children[0] = r;
         btree_split_child(s, 0, r);
         btree_insert_nonfull(s, node);
@@ -173,7 +171,7 @@ void btree_traverse_node(BTreeNode* node) {
         if (!node->leaf) {
             btree_traverse_node(node->children[i]);
         }
-        printf("- %s\n", node->keys[i]->name);
+        printf("%s%s  ", node->keys[i]->name, node->keys[i]->type == DIRECTORY_TYPE ? "/" : "");
     }
     if (!node->leaf) {
         btree_traverse_node(node->children[i]);
