@@ -1,4 +1,5 @@
 #include "filesystem.h"
+#include <stdbool.h>
 
 BTree* btree_create() {
     BTree* tree = malloc(sizeof(BTree));
@@ -30,13 +31,6 @@ TreeNode* create_directory(const char* name) {
     return node;
 }
 
-void delete_txt_file(BTree* tree, const char* name) {
-    printf("Arquivo '%s' deletado (simulado)\n", name);
-}
-
-void delete_directory(BTree* tree, const char* name) {
-    printf("Diretório '%s' deletado (simulado)\n", name);
-}
 
 Directory* get_root_directory() {
     Directory* root = malloc(sizeof(Directory));
@@ -44,8 +38,14 @@ Directory* get_root_directory() {
     return root;
 }
 
+
 void change_directory(Directory** current, const char* path) {
-    printf("Mudando para o diretório: %s (simulado)\n", path);
+    TreeNode* target_node = btree_search((*current)->tree, path);
+    if (target_node && target_node->type == DIRECTORY_TYPE) {
+        *current = target_node->data.directory;
+    } else {
+        printf("cd: Diretorio nao encontrado: %s\n", path);
+    }
 }
 
 void list_directory_contents(Directory* dir) {
@@ -53,9 +53,20 @@ void list_directory_contents(Directory* dir) {
     btree_traverse(dir->tree);
 }
 
+TreeNode* btree_search_recursive(BTreeNode* node, const char* name) {
+    if (!node) return NULL;
+    int i = 0;
+    while (i < node->num_keys && strcmp(name, node->keys[i]->name) > 0) i++;
+    if (i < node->num_keys && strcmp(name, node->keys[i]->name) == 0) return node->keys[i];
+    if (node->leaf) return NULL;
+    return btree_search_recursive(node->children[i], name);
+}
+
 TreeNode* btree_search(BTree* tree, const char* name) {
-    printf("Buscando: %s (simulado)\n", name);
-    return NULL;
+    if (!tree || !tree->root) {
+        return NULL;
+    }
+    return btree_search_recursive(tree->root, name);
 }
 
 /*---------------------------------------- INSERT ----------------------------------------*/
@@ -153,17 +164,152 @@ void btree_insert(BTree* tree, TreeNode* node) {
     }
 }
 
-/*----------------------------------------------------------------------------------------*/
+/*---------------------------------------- DELETE ----------------------------------------*/
 
-void btree_delete(BTree* tree, const char* name) {
-    printf("Removendo: %s (simulado)\n", name);
+int findKey(BTreeNode* node, const char* name) {
+    int idx = 0;
+    while (idx < node->num_keys && strcmp(node->keys[idx]->name, name) < 0) ++idx;
+    return idx;
 }
 
-/*---------------------------------------- TRAVERSE ----------------------------------------*/
+void removeFromLeaf(BTreeNode* node, int idx) {
+    for (int i = idx + 1; i < node->num_keys; ++i) node->keys[i - 1] = node->keys[i];
+    node->num_keys--;
+}
 
-// void btree_traverse(BTree* tree) {
-//     printf("[Exemplo] arquivo.txt\n");
-// }
+TreeNode* getPred(BTreeNode* node, int idx) {
+    BTreeNode* cur = node->children[idx];
+    while (!cur->leaf) cur = cur->children[cur->num_keys];
+    return cur->keys[cur->num_keys - 1];
+}
+
+TreeNode* getSucc(BTreeNode* node, int idx) {
+    BTreeNode* cur = node->children[idx + 1];
+    while (!cur->leaf) cur = cur->children[0];
+    return cur->keys[0];
+}
+
+// Declaração antecipada
+void btree_delete_internal(BTreeNode* node, const char* name);
+
+void fill(BTreeNode* node, int idx, const char* name) {
+    if (idx != 0 && node->children[idx - 1]->num_keys >= MIN_DEGREE) {
+        BTreeNode* child = node->children[idx];
+        BTreeNode* sibling = node->children[idx - 1];
+        for (int i = child->num_keys - 1; i >= 0; --i) child->keys[i + 1] = child->keys[i];
+        if (!child->leaf) {
+            for (int i = child->num_keys; i >= 0; --i) child->children[i + 1] = child->children[i];
+        }
+        child->keys[0] = node->keys[idx - 1];
+        if (!child->leaf) child->children[0] = sibling->children[sibling->num_keys];
+        node->keys[idx - 1] = sibling->keys[sibling->num_keys - 1];
+        child->num_keys += 1;
+        sibling->num_keys -= 1;
+    } else if (idx != node->num_keys && node->children[idx + 1]->num_keys >= MIN_DEGREE) {
+        BTreeNode* child = node->children[idx];
+        BTreeNode* sibling = node->children[idx + 1];
+        child->keys[child->num_keys] = node->keys[idx];
+        if (!child->leaf) child->children[child->num_keys + 1] = sibling->children[0];
+        node->keys[idx] = sibling->keys[0];
+        for (int i = 1; i < sibling->num_keys; ++i) sibling->keys[i - 1] = sibling->keys[i];
+        if (!sibling->leaf) {
+            for (int i = 1; i <= sibling->num_keys; ++i) sibling->children[i - 1] = sibling->children[i];
+        }
+        child->num_keys += 1;
+        sibling->num_keys -= 1;
+    } else {
+        int merge_idx = (idx == node->num_keys) ? idx - 1 : idx;
+        BTreeNode* child = node->children[merge_idx];
+        BTreeNode* sibling = node->children[merge_idx + 1];
+        child->keys[MIN_DEGREE - 1] = node->keys[merge_idx];
+        for (int i = 0; i < sibling->num_keys; ++i) child->keys[i + MIN_DEGREE] = sibling->keys[i];
+        if (!child->leaf) {
+            for (int i = 0; i <= sibling->num_keys; ++i) child->children[i + MIN_DEGREE] = sibling->children[i];
+        }
+        for (int i = merge_idx + 1; i < node->num_keys; ++i) node->keys[i - 1] = node->keys[i];
+        for (int i = merge_idx + 2; i <= node->num_keys; ++i) node->children[i - 1] = node->children[i];
+        child->num_keys += sibling->num_keys + 1;
+        node->num_keys--;
+        free(sibling);
+        btree_delete_internal(child, name);
+        return;
+    }
+}
+
+//Declaração antecipada
+void removeFromNonLeaf(BTreeNode* node, int idx);
+
+void btree_delete_internal(BTreeNode* node, const char* name) {
+    int idx = findKey(node, name);
+    if (idx < node->num_keys && strcmp(node->keys[idx]->name, name) == 0) {
+        if (node->leaf) removeFromLeaf(node, idx);
+        else removeFromNonLeaf(node, idx);
+    } else {
+        if (node->leaf) { return; }
+        bool flag = (idx == node->num_keys);
+        if (node->children[idx]->num_keys < MIN_DEGREE) {
+            fill(node, idx, name);
+        }
+        if (flag && idx > node->num_keys) btree_delete_internal(node->children[idx - 1], name);
+        else btree_delete_internal(node->children[idx], name);
+    }
+}
+
+void removeFromNonLeaf(BTreeNode* node, int idx) {
+    TreeNode* k = node->keys[idx];
+    if (node->children[idx]->num_keys >= MIN_DEGREE) {
+        TreeNode* pred = getPred(node, idx);
+        node->keys[idx] = pred;
+        btree_delete_internal(node->children[idx], pred->name);
+    } else if (node->children[idx + 1]->num_keys >= MIN_DEGREE) {
+        TreeNode* succ = getSucc(node, idx);
+        node->keys[idx] = succ;
+        btree_delete_internal(node->children[idx + 1], succ->name);
+    } else {
+        BTreeNode* child = node->children[idx];
+        BTreeNode* sibling = node->children[idx + 1];
+        child->keys[MIN_DEGREE - 1] = k;
+        for (int i = 0; i < sibling->num_keys; ++i) child->keys[i + MIN_DEGREE] = sibling->keys[i];
+        if (!child->leaf) {
+            for (int i = 0; i <= sibling->num_keys; ++i) child->children[i + MIN_DEGREE] = sibling->children[i];
+        }
+        for (int i = idx + 1; i < node->num_keys; ++i) node->keys[i - 1] = node->keys[i];
+        for (int i = idx + 2; i <= node->num_keys; ++i) node->children[i - 1] = node->children[i];
+        node->num_keys--;
+        child->num_keys += sibling->num_keys + 1;
+        free(sibling);
+        btree_delete_internal(child, k->name);
+    }
+}
+
+
+
+void btree_delete(BTree* tree, const char* name) {
+    if (!tree->root) return;
+    btree_delete_internal(tree->root, name);
+    if (tree->root->num_keys == 0) {
+        BTreeNode* tmp = tree->root;
+        if (tree->root->leaf) { 
+            // Ela é o único nó da árvore
+            tree->root = NULL;
+        }
+        else {
+            tree->root = tree->root->children[0];
+            free(tmp);
+        }
+    }
+}
+
+void delete_txt_file(BTree* tree, const char* name) {
+    btree_delete(tree, name);
+}
+
+void delete_directory(BTree* tree, const char* name) {
+    btree_delete(tree, name);
+}
+
+
+/*---------------------------------------- TRAVERSE ----------------------------------------*/
 
 void btree_traverse_node(BTreeNode* node) {
     int i;
@@ -171,7 +317,7 @@ void btree_traverse_node(BTreeNode* node) {
         if (!node->leaf) {
             btree_traverse_node(node->children[i]);
         }
-        printf("%s%s  ", node->keys[i]->name, node->keys[i]->type == DIRECTORY_TYPE ? "/" : "");
+        printf("%s%s  \n", node->keys[i]->name, node->keys[i]->type == DIRECTORY_TYPE ? "/" : "");
     }
     if (!node->leaf) {
         btree_traverse_node(node->children[i]);
