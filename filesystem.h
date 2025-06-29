@@ -69,4 +69,8 @@ Directory* get_root_directory();
 void change_directory(Directory** current, const char* path); //Implementar
 void list_directory_contents(Directory* dir);
 
+// Img
+void save_filesystem(Directory* root);
+void persist_node(FILE* img, BTreeNode* node, const char* prefix, int is_last);
+
 #endif

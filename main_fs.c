@@ -23,61 +23,6 @@ void get_current_path_string(char path_stack[][MAX_PATH_LENGTH], int stack_size,
     }
 }
 
-void persist_node(FILE* img, BTreeNode* node, const char* prefix, int is_last) {
-    if (!node) return;
-
-    for (int i = 0; i < node->num_keys; i++) {
-        TreeNode* t = node->keys[i];
-
-        // Define prefixo para a linha atual
-        fprintf(img, "%s", prefix);
-        if (i == node->num_keys - 1 && node->leaf)
-            fprintf(img, "└── ");
-        else
-            fprintf(img, "├── ");
-
-        // Escreve nome e conteúdo
-        if (t->type == FILE_TYPE) {
-            fprintf(img, "%s: %s\n", t->name, t->data.file->content);
-        } else if (t->type == DIRECTORY_TYPE) {
-            fprintf(img, "%s\n", t->name);
-
-            // Prefixo para os filhos
-            char new_prefix[512];
-            snprintf(new_prefix, sizeof(new_prefix), "%s%s", prefix, (i == node->num_keys - 1 && node->leaf) ? "    " : "│   ");
-
-            if (t->data.directory->tree && t->data.directory->tree->root) {
-                persist_node(img, t->data.directory->tree->root, new_prefix, 1);
-            }
-        }
-
-        // Se não é folha, percorre os filhos
-        if (!node->leaf && node->children[i]) {
-            persist_node(img, node->children[i], prefix, 0);
-        }
-    }
-
-    // Último filho, se houver
-    if (!node->leaf && node->children[node->num_keys]) {
-        persist_node(img, node->children[node->num_keys], prefix, 1);
-    }
-}
-void save_filesystem(Directory* root) {
-    FILE* img = fopen("fs.img", "w");
-    if (!img) {
-        perror("Erro ao criar fs.img");
-        return;
-    }
-
-    fprintf(img, "ROOT\n");
-    if (root->tree && root->tree->root) {
-        persist_node(img, root->tree->root, "", 1);
-    }
-
-    fclose(img);
-    printf("\nSistema de arquivos salvo em fs.img\n");
-}
-
 int main() {
     // Criação do sistema de arquivos
     Directory* root = get_root_directory();
@@ -132,7 +77,38 @@ int main() {
             if (btree_search(current_dir->tree, arg1)) {
                 printf("touch: Nao foi possivel criar o arquivo '%s': Arquivo ou diretorio ja existe\n", arg1);
             } else {
-                TreeNode* new_file_node = create_txt_file(arg1, "Conteudo de exemplo.");
+                printf("Conteudo do arquivo (pressione ENTER para finalizar):\n");
+
+                // Alocar até 1MB (1.048.576 bytes) para o conteúdo
+                char* content = malloc(1024 * 1024 + 1);
+                if (!content) {
+                    perror("Erro ao alocar memória para o conteúdo");
+                    continue;
+                }
+
+                // Limpar o buffer do stdin
+                getchar(); // consome o '\n' deixado por scanf
+
+                // Ler uma linha até ENTER, limitado a 1MB
+                if (fgets(content, 1024 * 1024, stdin) == NULL) {
+                    printf("Erro ao ler conteúdo\n");
+                    free(content);
+                    continue;
+                }
+
+                // Remover o \n final, se existir
+                size_t len = strlen(content);
+                if (len > 0 && content[len - 1] == '\n') {
+                    content[len - 1] = '\0';
+                }
+
+                if (len >= 1024 * 1024) {
+                    printf("Erro: conteúdo excede 1MB.\n");
+                    free(content);
+                    continue;
+                }           
+
+                TreeNode* new_file_node = create_txt_file(arg1, content);
                 btree_insert(current_dir->tree, new_file_node);
             }
         } else if (strcmp(command, "rm") == 0) {
