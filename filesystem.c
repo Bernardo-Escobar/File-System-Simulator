@@ -330,7 +330,7 @@ void btree_traverse(BTree* tree) {
     }
 }
 
-void persist_node(FILE* img, BTreeNode* node, const char* prefix, int is_last) {
+void format_filesystem(FILE* img, BTreeNode* node, const char* prefix, int is_last) {
     if (!node) return;
 
     for (int i = 0; i < node->num_keys; i++) {
@@ -354,19 +354,19 @@ void persist_node(FILE* img, BTreeNode* node, const char* prefix, int is_last) {
             snprintf(new_prefix, sizeof(new_prefix), "%s%s", prefix, (i == node->num_keys - 1 && node->leaf) ? "    " : "│   ");
 
             if (t->data.directory->tree && t->data.directory->tree->root) {
-                persist_node(img, t->data.directory->tree->root, new_prefix, 1);
+                format_filesystem(img, t->data.directory->tree->root, new_prefix, 1);
             }
         }
 
         // Se não é folha, percorre os filhos
         if (!node->leaf && node->children[i]) {
-            persist_node(img, node->children[i], prefix, 0);
+            format_filesystem(img, node->children[i], prefix, 0);
         }
     }
 
     // Último filho, se houver
     if (!node->leaf && node->children[node->num_keys]) {
-        persist_node(img, node->children[node->num_keys], prefix, 1);
+        format_filesystem(img, node->children[node->num_keys], prefix, 1);
     }
 }
 void save_filesystem(Directory* root) {
@@ -378,7 +378,7 @@ void save_filesystem(Directory* root) {
 
     fprintf(img, "ROOT\n");
     if (root->tree && root->tree->root) {
-        persist_node(img, root->tree->root, "", 1);
+        format_filesystem(img, root->tree->root, "", 1);
     }
 
     fclose(img);
