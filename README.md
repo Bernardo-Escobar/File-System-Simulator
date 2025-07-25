@@ -1,4 +1,4 @@
-# 📂 File System Simulator — Sistema de Arquivos com Árvore B
+# 📂 Simulador de Sistema de Arquivos com Árvore B
 
 Repositório desenvolvido para a Avaliação M3 da disciplina de **Sistemas Operacionais (2025/1)** da **Universidade do Vale do Itajaí (UNIVALI)**.  
 O projeto consiste na criação de um **sistema de arquivos virtual** baseado na estrutura de dados **Árvore B**, com funcionalidades básicas de manipulação de arquivos e diretórios via terminal.
