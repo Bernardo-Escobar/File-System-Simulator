@@ -105,7 +105,7 @@ Modularização com múltiplos arquivos fonte
 ```
 
 ## 👨‍💻 Autores
-Projeto realizado por alunos da UNIVALI – Sistemas Operacionais (2025/1)
+Projeto desenvolvido por alunos da Universidade do Vale do Itajaí (UNIVALI) — Campus Itajaí Disciplina: Sistemas Operacionais
 
 ## 📝 Licença
 Uso acadêmico e educacional. Livre para consulta e estudo.
